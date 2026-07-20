@@ -1,25 +1,23 @@
-# --- Secrets & environment ---
+# --- Secrets & local dev vars ---
 .env
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
 
-# --- Database ---
-*.db
+# --- Node ---
+node_modules/
+npm-debug.log*
+yarn-error.log*
+package-lock.json.bak
+
+# --- Cloudflare / Wrangler ---
+.wrangler/
+dist/
+.mf/
+
+# --- Local D1 / SQLite artifacts ---
 *.sqlite
 *.sqlite3
-
-# --- Python ---
-__pycache__/
-*.py[cod]
-*$py.class
-*.egg-info/
-.eggs/
-build/
-dist/
-
-# --- Virtual environments ---
-.venv/
-venv/
-env/
-ENV/
 
 # --- IDE / OS ---
 .idea/

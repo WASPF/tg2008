@@ -1,42 +1,43 @@
-# 📊 Instant Dashboard Builder — Telegram Bot
+# ⚡ Instant Dashboard Builder — Serverless Telegram Bot
 
-> Опиши дашборд словами — получи готовый, запускаемый код на **Streamlit** за пару секунд.
+> Опиши дашборд словами — получи готовый код на **Streamlit**. Работает на **Cloudflare Workers** + **D1**, без единого сервера.
 
-**Instant Dashboard Builder** — это асинхронный Telegram-бот, который принимает текстовое
-описание дашборда и мгновенно генерирует чистый, современный Python-код на Streamlit с
-уже встроенными тестовыми данными. Скопировал, запустил `streamlit run app.py` — и видишь
-работающий интерактивный дашборд.
+**Instant Dashboard Builder** — это Telegram-бот на бессерверной Edge-архитектуре. Он принимает
+текстовое описание дашборда и через **Groq** (`llama-3.3-70b-versatile`) мгновенно генерирует
+валидный Python-код для Streamlit со встроенными тестовыми данными. Скопировал, запустил
+`streamlit run app.py` — и видишь работающий интерактивный дашборд.
 
-Под капотом — молниеносная генерация через **Groq** (модель `llama-3.3-70b-versatile`),
-freemium-лимиты на SQLite и полноценная монетизация через **Telegram Payments / Stars**.
+Весь бот целиком живёт в одном Cloudflare Worker: Telegram шлёт апдейты по **Webhook**, воркер
+обрабатывает их через **grammY** и мгновенно отвечает. Данные пользователей и лимиты хранятся
+в бессерверной SQL-базе **Cloudflare D1**.
 
 ---
 
 ## ✨ Возможности
 
-- ⚡ **Мгновенная генерация кода** — Streamlit-дашборд из текстового описания.
-- 🧩 **Готовый к запуску результат** — код содержит мок-данные, внешние файлы не нужны.
+- ⚡ **Serverless Edge** — деплой в Cloudflare Workers, холодный старт близок к нулю.
+- 🪝 **Webhook-архитектура** — никакого polling: POST от Telegram → grammY → ответ.
+- 🧩 **Готовый к запуску код** — Streamlit-файл с мок-данными, внешние источники не нужны.
 - 🎛️ **Современный Streamlit API** — `st.metric`, `st.dataframe`, `st.line_chart`,
-  `st.bar_chart`, интерактивный `sidebar` с фильтрами.
-- 🎁 **Freemium-модель** — 3 бесплатные генерации в сутки, лимит сбрасывается каждые 24 часа.
-- 💎 **Premium-подписка** — безлимитная генерация после оплаты.
-- 💳 **Telegram Payments** — оплата через Telegram Stars ⭐ или фиатный провайдер;
-  полная обработка `pre_checkout_query` и `successful_payment`.
-- 🛡️ **Production-ready** — обработка ошибок сети/API, защита от спама длинными запросами,
-  безопасная загрузка конфигурации.
+  `st.bar_chart`, интерактивный `sidebar`.
+- 🎁 **Freemium на D1** — 3 бесплатные генерации в сутки, сброс каждые 24 часа.
+- 💎 **Premium** — безлимитная генерация после оплаты.
+- 💳 **Telegram Payments** — Telegram Stars ⭐ или фиатный провайдер; полная обработка
+  `pre_checkout_query` и `successful_payment`.
+- 🛡️ **Надёжность** — обработка ошибок сети/Groq, таймауты, защита от спама; воркер не падает.
 
 ---
 
 ## 🏗️ Технологический стек
 
-| Компонент         | Технология                          |
-|-------------------|-------------------------------------|
-| Язык              | Python 3.11+                        |
-| Telegram Framework| [aiogram 3.x](https://aiogram.dev)  |
-| LLM               | [Groq SDK](https://console.groq.com) (`llama-3.3-70b-versatile`) |
-| База данных       | SQLite через `aiosqlite`            |
-| Конфигурация      | `pydantic-settings` + `python-dotenv` |
-| Целевой фреймворк | Streamlit (для генерируемого кода)  |
+| Компонент          | Технология                                   |
+|--------------------|----------------------------------------------|
+| Язык               | TypeScript (строгая типизация)               |
+| Рантайм            | Cloudflare Workers (Wrangler CLI)            |
+| Telegram Framework | [grammY](https://grammy.dev)                 |
+| База данных        | Cloudflare D1 (serverless SQL)               |
+| LLM                | Groq API через нативный `fetch` (`llama-3.3-70b-versatile`) |
+| Целевой фреймворк  | Streamlit (для генерируемого кода)           |
 
 ---
 
@@ -44,79 +45,140 @@ freemium-лимиты на SQLite и полноценная монетизаци
 
 ```
 .
-├── main.py            # Точка входа: запуск polling, регистрация роутеров
-├── config.py          # Безопасная загрузка настроек (pydantic-settings)
-├── database.py        # Async-SQLite: пользователи, лимиты, премиум-статус
-├── utils.py           # Системный промт + запрос к Groq API
-├── handlers.py        # Обработчики команд, генерации и платежей
-├── requirements.txt   # Зависимости проекта
-├── .env.example       # Шаблон переменных окружения
-├── .gitignore
+├── src/
+│   ├── index.ts        # Точка входа Worker: обработчик fetch/webhook
+│   ├── bot.ts          # grammY: команды, генерация, инвойсы, платежи
+│   ├── db.ts           # Работа с D1: лимиты, сброс, выдача премиума
+│   ├── groq.ts         # Запрос к Groq API через fetch + обработка ошибок
+│   └── types.ts        # Интерфейсы Env, конфига, строк БД, контекста
+├── schema.sql          # SQL для инициализации таблиц в D1
+├── wrangler.toml       # Конфиг воркера + биндинг env.DB
+├── package.json        # Скрипты wrangler и зависимости
+├── tsconfig.json       # Строгая конфигурация TypeScript
+├── .dev.vars.example   # Шаблон локальных секретов для `wrangler dev`
 └── README.md
 ```
 
 ---
 
-## 🚀 Установка и запуск
+## 🚀 Быстрый старт
 
-### 1. Клонирование репозитория
+### 0. Предварительно
+
+- Аккаунт [Cloudflare](https://dash.cloudflare.com) (бесплатного плана достаточно).
+- Node.js 18+ и токен бота от [@BotFather](https://t.me/BotFather).
+- Ключ [Groq API](https://console.groq.com/keys).
+
+### 1. Установка зависимостей
 
 ```bash
 git clone https://github.com/<your-username>/instant-dashboard-builder.git
 cd instant-dashboard-builder
+npm install
+npx wrangler login
 ```
 
-### 2. Виртуальное окружение и зависимости
+### 2. Создание базы данных D1
 
 ```bash
-python3.11 -m venv .venv
-source .venv/bin/activate       # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+npx wrangler d1 create instant-dashboard-db
 ```
 
-### 3. Настройка `.env`
+Команда выведет блок с `database_id`. **Скопируйте его** в `wrangler.toml`:
 
-Скопируйте шаблон и заполните своими значениями:
+```toml
+[[d1_databases]]
+binding = "DB"
+database_name = "instant-dashboard-db"
+database_id = "СЮДА_ВСТАВЬТЕ_ВАШ_ID"
+```
+
+### 3. Накат миграций (schema.sql)
 
 ```bash
-cp .env.example .env
+# В облачную D1:
+npm run db:init
+# или напрямую:
+npx wrangler d1 execute instant-dashboard-db --remote --file=./schema.sql
+
+# Для локальной разработки (wrangler dev):
+npm run db:init:local
 ```
 
-| Переменная         | Описание                                                                 |
-|--------------------|--------------------------------------------------------------------------|
-| `BOT_TOKEN`        | Токен бота от [@BotFather](https://t.me/BotFather)                        |
-| `GROQ_API_KEY`     | Ключ API из [Groq Console](https://console.groq.com/keys)                |
-| `GROQ_MODEL`       | Модель Groq (по умолчанию `llama-3.3-70b-versatile`)                     |
-| `PAYMENT_PROVIDER` | `stars` — Telegram Stars (по умолчанию) или `fiat` — фиатный провайдер   |
-| `PROVIDER_TOKEN`   | Токен платёжного провайдера (**только** для `fiat`; для Stars — пусто)   |
-| `PREMIUM_PRICE`    | Цена: число звёзд для `stars` или сумма в центах для `fiat`              |
-| `PREMIUM_CURRENCY` | Код валюты для `fiat` (например `USD`); для Stars игнорируется           |
-| `PREMIUM_DAYS`     | Срок подписки в днях (по умолчанию 30)                                    |
-| `FREE_DAILY_LIMIT` | Бесплатных генераций в сутки (по умолчанию 3)                             |
-| `MAX_PROMPT_LENGTH`| Максимальная длина запроса, защита от спама (по умолчанию 1500)          |
-| `DB_PATH`          | Путь к файлу SQLite (по умолчанию `bot_database.db`)                     |
+### 4. Настройка секретов
 
-> 💡 **Про платежи.** Для приёма **Telegram Stars** ничего дополнительно подключать не нужно —
-> оставьте `PAYMENT_PROVIDER=stars` и пустой `PROVIDER_TOKEN`. Для фиатных платежей подключите
-> провайдера через @BotFather → *Payments*, поставьте `PAYMENT_PROVIDER=fiat` и вставьте
-> полученный `PROVIDER_TOKEN` (для тестов используйте тестовый провайдер).
-
-### 4. Запуск бота
+Несекретные параметры уже лежат в `wrangler.toml` (`[vars]`). Секреты задаются отдельно:
 
 ```bash
-python main.py
+npx wrangler secret put BOT_TOKEN         # токен от @BotFather
+npx wrangler secret put GROQ_API_KEY      # ключ Groq
+npx wrangler secret put WEBHOOK_SECRET    # произвольная строка для защиты вебхука
+# Только при PAYMENT_PROVIDER=fiat:
+npx wrangler secret put PROVIDER_TOKEN    # токен платёжного провайдера
 ```
 
-В консоли появится сообщение вида `Бот @your_bot запущен` — можно писать боту в Telegram.
+| Секрет / переменная | Где задаётся      | Описание                                              |
+|---------------------|-------------------|-------------------------------------------------------|
+| `BOT_TOKEN`         | `secret put`      | Токен бота Telegram                                   |
+| `GROQ_API_KEY`      | `secret put`      | Ключ Groq API                                         |
+| `WEBHOOK_SECRET`    | `secret put`      | Секрет для проверки подлинности вебхука (рекомендуется)|
+| `PROVIDER_TOKEN`    | `secret put`      | Токен провайдера — **только** для `fiat`              |
+| `PAYMENT_PROVIDER`  | `[vars]`          | `stars` (по умолчанию) или `fiat`                     |
+| `PREMIUM_PRICE`     | `[vars]`          | Число звёзд (`stars`) или центы (`fiat`)              |
+| `PREMIUM_CURRENCY`  | `[vars]`          | Валюта для `fiat` (для Stars всегда `XTR`)            |
+| `PREMIUM_DAYS`      | `[vars]`          | Срок подписки в днях                                  |
+| `FREE_DAILY_LIMIT`  | `[vars]`          | Бесплатных генераций в сутки                           |
+| `MAX_PROMPT_LENGTH` | `[vars]`          | Максимальная длина запроса (антиспам)                 |
+
+> 💡 **Про платежи.** Для **Telegram Stars** ничего подключать не нужно: оставьте
+> `PAYMENT_PROVIDER=stars` и не задавайте `PROVIDER_TOKEN`. Для фиатных платежей подключите
+> провайдера через @BotFather → *Payments*, поставьте `PAYMENT_PROVIDER=fiat` и добавьте
+> секрет `PROVIDER_TOKEN`.
+
+### 5. Деплой
+
+```bash
+npm run deploy
+# или: npx wrangler deploy
+```
+
+Wrangler выведет публичный URL воркера, например:
+`https://instant-dashboard-builder.<your-subdomain>.workers.dev`
+
+### 6. Регистрация вебхука в Telegram
+
+Скажите Telegram отправлять апдеты на ваш воркер (подставьте свои значения):
+
+```bash
+curl "https://api.telegram.org/bot<BOT_TOKEN>/setWebhook" \
+  -d "url=https://instant-dashboard-builder.<your-subdomain>.workers.dev" \
+  -d "secret_token=<WEBHOOK_SECRET>"
+```
+
+`secret_token` должен совпадать с секретом `WEBHOOK_SECRET`. Готово — пишите боту в Telegram!
+
+---
+
+## 🧪 Локальная разработка
+
+```bash
+cp .dev.vars.example .dev.vars   # заполните секреты для локали
+npm run db:init:local            # создать таблицы в локальной D1
+npm run dev                      # wrangler dev
+npm run typecheck                # проверка строгой типизации
+```
+
+Для приёма апдейтов локально пробросьте порт наружу (например, через `cloudflared tunnel`)
+и укажите публичный URL туннеля в `setWebhook`.
 
 ---
 
 ## 💬 Как пользоваться
 
 1. Откройте диалог с ботом и нажмите **/start**.
-2. Отправьте текстовое описание дашборда, например:
+2. Отправьте описание дашборда, например:
    > *«Дашборд продаж по месяцам: KPI по выручке, график динамики и таблица по регионам с фильтром»*
-3. Получите готовый файл `app.py`, сохраните его и запустите:
+3. Получите готовый код `app.py` и запустите:
 
 ```bash
 pip install streamlit pandas numpy
@@ -130,33 +192,26 @@ streamlit run app.py
 
 ## 🧠 Как это работает
 
-1. **handlers.py** принимает текст, проверяет длину и лимиты пользователя в БД.
-2. **database.py** решает, разрешён ли доступ (free-лимит / активный Premium),
-   и списывает попытку только после успешной генерации.
-3. **utils.py** формирует жёсткий системный промт и обращается к Groq API,
-   аккуратно обрабатывая ошибки сети, таймауты и лимиты.
-4. Ответ модели очищается от markdown-обёртки и отправляется пользователю
-   удобным копируемым блоком с инструкцией по запуску.
-5. При покупке Premium срабатывает цепочка `send_invoice` →
-   `pre_checkout_query` → `successful_payment`, и статус в БД становится `premium`.
+1. **index.ts** ловит POST-вебхук, проверяет `secret_token` и передаёт апдейт в grammY.
+2. **bot.ts** валидирует текст, проверяет лимиты в D1 и запускает генерацию.
+3. **db.ts** решает, разрешён ли доступ (дневной лимит / активный Premium),
+   и списывает попытку **только после** успешной генерации.
+4. **groq.ts** через нативный `fetch` обращается к Groq, обрабатывая таймауты,
+   `429` и сетевые ошибки, и извлекает чистый код из markdown-ответа.
+5. Ответ отправляется удобным копируемым блоком, а объёмный код — файлом `app.py`.
+6. Покупка Premium: `sendInvoice` → `pre_checkout_query` → `successful_payment`,
+   после чего статус пользователя в D1 становится `premium`.
 
 ---
 
 ## ⚠️ Обработка ошибок
 
-- **Groq недоступен / таймаут / rate-limit** — пользователь получает понятное
-  сообщение, а бесплатная попытка **не списывается**.
-- **Слишком длинный запрос** — блокируется с подсказкой о лимите символов.
-- **Пустой / слишком короткий запрос** — бот просит уточнить описание.
+- **Groq недоступен / таймаут / rate-limit** — понятное сообщение пользователю,
+  бесплатная попытка **не списывается**.
+- **Слишком длинный / пустой запрос** — вежливо отклоняется с подсказкой.
+- **Любая непойманная ошибка** — воркер логирует её и всё равно отвечает `200`,
+  чтобы Telegram не устраивал шторм повторных доставок.
 - **Истёкший Premium** — статус автоматически понижается до `free` при следующей проверке.
-
----
-
-## 📦 Деплой
-
-Проект не требует внешней инфраструктуры кроме SQLite-файла и подходит для запуска на любом VPS.
-Рекомендуется завернуть `python main.py` в systemd-сервис или Docker-контейнер и хранить
-секреты в `.env` (файл уже добавлен в `.gitignore`).
 
 ---
 

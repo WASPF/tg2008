@@ -1,0 +1,19 @@
+# =========================================================================
+#  Локальные секреты для `wrangler dev`.
+#  Скопируйте в `.dev.vars` и заполните. Файл `.dev.vars` в .gitignore.
+#  В продакшене эти значения задаются через `wrangler secret put <NAME>`.
+# =========================================================================
+
+# Токен бота от @BotFather
+BOT_TOKEN="123456789:AAExxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Ключ Groq API (https://console.groq.com/keys)
+GROQ_API_KEY="gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Токен фиатного платёжного провайдера (нужен ТОЛЬКО при PAYMENT_PROVIDER=fiat).
+# Для Telegram Stars оставьте пустым.
+PROVIDER_TOKEN=""
+
+# Секрет для проверки подлинности вебхука Telegram (опционально, но рекомендуется).
+# Тот же самый секрет указывается при setWebhook в параметре secret_token.
+WEBHOOK_SECRET="my-super-secret-webhook-token"
