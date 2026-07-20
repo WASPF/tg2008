@@ -159,6 +159,25 @@ curl "https://api.telegram.org/bot<BOT_TOKEN>/setWebhook" \
 
 ---
 
+## 🤖 CI/CD — авто-деплой через GitHub Actions
+
+В репозитории настроен workflow `.github/workflows/deploy.yml`: при каждом пуше в `main`
+он ставит зависимости, прогоняет строгую проверку типов и деплоит воркер в Cloudflare.
+
+Чтобы он заработал, добавьте в репозиторий два секрета
+(**Settings → Secrets and variables → Actions → New repository secret**):
+
+| Секрет                  | Где взять                                                                 |
+|-------------------------|--------------------------------------------------------------------------|
+| `CLOUDFLARE_API_TOKEN`  | Cloudflare Dashboard → My Profile → API Tokens → *Edit Cloudflare Workers* |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Dashboard → Workers & Pages (Account ID справа)                |
+
+> Секреты самого бота (`BOT_TOKEN`, `GROQ_API_KEY` и т.д.) в CI не нужны — они живут
+> в Cloudflare и задаются через `wrangler secret put` (см. шаг 4). Деплой их не перезаписывает.
+> Изменения только в `*.md` и мета-файлах деплой не запускают.
+
+---
+
 ## 🧪 Локальная разработка
 
 ```bash
