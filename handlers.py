@@ -18,6 +18,7 @@ import logging
 from aiogram import F, Router
 from aiogram.filters import Command, CommandStart
 from aiogram.types import (
+    BufferedInputFile,
     CallbackQuery,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -63,11 +64,14 @@ def _buy_premium_keyboard() -> InlineKeyboardMarkup:
 # --------------------------------------------------------------------------- #
 async def _send_code(message: Message, code: str, requests_left: int, is_premium: bool) -> None:
     """
-    Отправляет сгенерированный код пользователю.
+    Отправляет сгенерированный код пользователю удобным для копирования способом.
 
-    Код оборачивается в HTML <pre><code>, что даёт аккуратный, копируемый
-    блок в Telegram. Длинный код автоматически разбивается на части,
-    чтобы не превысить лимит сообщения.
+    Стратегия:
+      * Короткий код — одним HTML <pre><code> блоком: в Telegram такой блок
+        копируется одним тапом по кнопке «Copy».
+      * Длинный код (не помещается в одно сообщение) — отправляется готовым
+        файлом `app.py`. Его можно сразу скачать и запустить, а копировать
+        целиком удобнее, чем несколько разбитых сообщений.
     """
     run_hint = (
         "🚀 <b>Как запустить:</b>\n"
@@ -80,19 +84,30 @@ async def _send_code(message: Message, code: str, requests_left: int, is_premium
     else:
         footer = f"📊 Осталось бесплатных генераций сегодня: <b>{requests_left}</b>"
 
-    # Разбиваем код на безопасные по длине куски.
-    # Резервируем место под теги <pre><code class="language-python"> ... </code></pre>.
-    wrapper_overhead = len('<pre><code class="language-python"></code></pre>') + 20
-    chunk_size = _TG_MSG_LIMIT - wrapper_overhead
+    # Проверяем, помещается ли код в одно сообщение с учётом HTML-обёртки,
+    # заголовка, подсказки по запуску и футера.
     escaped = html.escape(code)
-    chunks = [escaped[i : i + chunk_size] for i in range(0, len(escaped), chunk_size)] or [""]
+    header = "✅ <b>Ваш дашборд готов!</b>\n\n"
+    inline_message = (
+        f"{header}"
+        f'<pre><code class="language-python">{escaped}</code></pre>\n\n'
+        f"{run_hint}\n\n{footer}"
+    )
 
-    for idx, chunk in enumerate(chunks):
-        body = f'<pre><code class="language-python">{chunk}</code></pre>'
-        # Подсказку и футер добавляем только к последнему сообщению.
-        if idx == len(chunks) - 1:
-            body = f"✅ <b>Ваш дашборд готов!</b>\n\n{body}\n\n{run_hint}\n\n{footer}"
-        await message.answer(body)
+    if len(inline_message) <= _TG_MSG_LIMIT:
+        # Короткий код — показываем копируемым блоком прямо в чате.
+        await message.answer(inline_message)
+        return
+
+    # Длинный код — отдаём файлом app.py, готовым к запуску.
+    document = BufferedInputFile(code.encode("utf-8"), filename="app.py")
+    caption = (
+        f"{header}"
+        "Код получился объёмным, поэтому отправляю его файлом "
+        "<code>app.py</code> — сохраните и запустите.\n\n"
+        f"{run_hint}\n\n{footer}"
+    )
+    await message.answer_document(document, caption=caption)
 
 
 # --------------------------------------------------------------------------- #
