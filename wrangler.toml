@@ -1,0 +1,31 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "instant-dashboard-builder"
+main = "src/index.ts"
+compatibility_date = "2024-11-27"
+
+# grammY работает на Edge через нативный fetch — тяжёлый nodejs_compat не нужен.
+# workers_dev = true оставляет доступным поддомен *.workers.dev для вебхука.
+workers_dev = true
+
+# --------------------------------------------------------------------------- #
+#  Публичные (несекретные) переменные окружения.
+#  Секреты (BOT_TOKEN, GROQ_API_KEY, PROVIDER_TOKEN, WEBHOOK_SECRET) задаются
+#  через `wrangler secret put <NAME>` и здесь НЕ хранятся.
+# --------------------------------------------------------------------------- #
+[vars]
+GROQ_MODEL = "llama-3.3-70b-versatile"
+PAYMENT_PROVIDER = "stars"      # "stars" (Telegram Stars) или "fiat"
+PREMIUM_PRICE = "100"           # звёзды для stars ИЛИ центы для fiat
+PREMIUM_CURRENCY = "USD"        # используется только для fiat (для stars всегда XTR)
+PREMIUM_DAYS = "30"
+FREE_DAILY_LIMIT = "3"
+MAX_PROMPT_LENGTH = "1500"
+
+# --------------------------------------------------------------------------- #
+#  Биндинг базы данных Cloudflare D1 (доступна в коде как env.DB).
+#  database_id получается при `wrangler d1 create instant-dashboard-db`.
+# --------------------------------------------------------------------------- #
+[[d1_databases]]
+binding = "DB"
+database_name = "instant-dashboard-db"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
